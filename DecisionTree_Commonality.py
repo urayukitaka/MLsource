@@ -381,13 +381,13 @@ class Commonality:
         self.branch = {}
         # 1st branch
         branch1_filename = os.path.join(self.graphdir, "branch1.png")
-        param, condition1, bratio_str, bratio_l_str, bratio_r_str, data_l, data_r = analyze_node(tree_structure=tree_struct,
+        param, condition1, condition1_else, bratio_str, bratio_l_str, bratio_r_str, data_l, data_r = analyze_node(tree_structure=tree_struct,
                                                                                      dataset = self.dataset,
                                                                                      savefilename=branch1_filename)
         self.branch["top"] = {
             "param":param,
             "condition_left":condition1,
-            "condition_right":"Else",
+            "condition_right":condition1_else,
             "base_bad_ratio":bratio_str,
             "bad_ratio_left":bratio_l_str,
             "bad_ratio_right":bratio_r_str,
@@ -395,26 +395,26 @@ class Commonality:
         }
         # 2nd left
         branch1_left_filename = os.path.join(self.graphdir, "branch1_left.png")
-        param, condition2, _, bratio_l_l_str, bratio_l_r_str, _, _ = analyze_node(tree_structure=tree_struct["left"],
+        param, condition2, condition2_else, _, bratio_l_l_str, bratio_l_r_str, _, _ = analyze_node(tree_structure=tree_struct["left"],
                                                                                 dataset = data_l,
                                                                                 savefilename=branch1_left_filename)
         self.branch["left"] = {
             "param":param,
             "condition_left":condition2,
-            "condition_right":"Else",
+            "condition_right":condition2_else,
             "bad_ratio_left":bratio_l_l_str,
             "bad_ratio_right":bratio_l_r_str,
             "branch_graph":branch1_left_filename
         }
         # 3rd right
         branch1_right_filename = os.path.join(self.graphdir, "branch1_right.png")
-        param, condition3, _, bratio_r_l_str, bratio_r_r_str, _, _ = analyze_node(tree_structure=tree_struct["right"],
+        param, condition3, condition3_else, _, bratio_r_l_str, bratio_r_r_str, _, _ = analyze_node(tree_structure=tree_struct["right"],
                                                                                 dataset = data_r,
                                                                                 savefilename=branch1_right_filename)
         self.branch["right"] = {
             "param":param,
             "condition_left":condition3,
-            "condition_right":"Else",
+            "condition_right":condition3_else,
             "bad_ratio_left":bratio_r_l_str,
             "bad_ratio_right":bratio_r_r_str,
             "branch_graph":branch1_right_filename
@@ -624,6 +624,7 @@ def analyze_node(tree_structure:dict,
         thre = tree_structure["threshold"]
         # left side
         condition1 = tree_structure["condition"]
+        condition2 = "Else"
         histdf1 = pd.DataFrame({
             param1:["0:"+condition1 if v<thre else "1:Else" for v in dataset[param]],
             target_col:dataset[target_col]
@@ -644,17 +645,18 @@ def analyze_node(tree_structure:dict,
         # categorical value
         param, val = out_feat_val(tree_structure["feature"])
         # left side
-        condition1 = tree_structure["feature"]
+        condition1 = "Else " + tree_structure["feature"]
+        condition2 = tree_structure["feature"]
         histdf1 = pd.DataFrame({
-            param1:["0:"+condition1 if v==val else "1:Else" for v in dataset[param]],
+            param1:["0:Else {}".format(val)+condition1 if v!=val else f"1:{val}" for v in dataset[param]],
             target_col:dataset[target_col]
         })
         # data right and bad ratio 2
-        data_l = dataset[dataset[param]==val]
+        data_l = dataset[dataset[param]!=val]
         bratio_l = tree_structure["left"]["class_distribution"][1] / tree_structure["left"]["samples"]
         bratio_l_str = "{}%".format(str(round(bratio_l*100, 1)))
         # data right and bad ratio right
-        data_r = dataset[~dataset[param]==val]
+        data_r = dataset[dataset[param]==val]
         bratio_r = tree_structure["right"]["class_distribution"][1] / tree_structure["right"]["samples"]
         bratio_r_str = "{}%".format(str(round(bratio_r*100, 1)))
         # base bratio
@@ -668,7 +670,7 @@ def analyze_node(tree_structure:dict,
         )
 
     # return
-    return param, condition1, bratio_base_str, bratio_l_str, bratio_r_str, data_l, data_r
+    return param, condition1, condition2, bratio_base_str, bratio_l_str, bratio_r_str, data_l, data_r
 
 class Report:
 
@@ -1438,7 +1440,7 @@ class Report:
 if __name__ == "__main__":
 
     # savedir
-    savedir = r"C:\Users\yktkk\Desktop\DS_practice\machine_learning\decision_tree_commonality\result\test2"
+    savedir = r"C:\Users\yktkk\Desktop\DS_practice\machine_learning\decision_tree_commonality\result\test3"
 
     # dataset
     f = r"C:\Users\yktkk\Desktop\DS_practice\machine_learning\decision_tree_commonality\dataset\house_price_dataset.csv"
@@ -1446,6 +1448,7 @@ if __name__ == "__main__":
 
     target_col = "SalePrice"
     df.dropna(subset=[target_col], inplace=True)
+    df = df.iloc[:,-4:]
 
     # class
     Com = Commonality(
